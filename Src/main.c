@@ -64,9 +64,14 @@ static void MX_USART1_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint32_t adcVal;
+uint32_t adcPrev;
 uint8_t samplingRate;
 int mybool = 0;
 int restarted = 0;
+int state = 0;
+uint32_t beatsCount = 0;
+uint32_t MinCount = 0;
+uint32_t bpm = 0;
 /* USER CODE END 0 */
 
 /**
@@ -125,11 +130,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
-
-		HAL_Delay(10);
-		//adcVal
-    /* USER CODE BEGIN 3 */
+		//HAL_Delay(10);
   }
   /* USER CODE END 3 */
 }
@@ -337,7 +338,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-int MinCount = 0;
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 		MinCount++;
@@ -349,11 +349,31 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 			restarted = 1;
 		}
 		adcVal=HAL_ADC_GetValue(&hadc1);
-		char s[6];
-		uint8_t end[2] = "\r\n";
+		if (adcVal>2500 && adcPrev<=2500)
+		{
+			state = 1;
+		}
+		if (state==1 && adcVal<=2500 && adcPrev>2500)
+		{
+			state = 2;
+			beatsCount++;
+		}
+		bpm = (int)((beatsCount)/((MinCount/samplingRate)*60));
+		adcPrev = adcVal;
+		char s[5];
+		char bpmChar[4];
+		char message[9];
+		//uint8_t end[2] = "\r\n";
 		dec_to_str(s,adcVal,4);
-		HAL_UART_Transmit(&huart1,(uint8_t *)s,sizeof(s),20);
-		HAL_UART_Transmit(&huart1,end,sizeof(end),20);
+		dec_to_str(bpmChar,beatsCount,3);
+		s[4] = ',';
+		strcpy(message,s);
+		strcat(message,bpmChar);
+		
+		HAL_UART_Transmit(&huart1,(uint8_t *)message,sizeof(message),20);
+		//HAL_UART_Transmit(&huart1,(uint8_t *)bpmChar,sizeof(bpmChar),20);
+		
+		//HAL_UART_Transmit(&huart1,end,sizeof(end),20);
 		HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_12);
 
 }
